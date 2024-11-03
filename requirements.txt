@@ -1,0 +1,7 @@
+# $LAN=Python$
+# Author : 李明儒 Ming-Ru Li
+# Student ID : M133040055
+# Date : 2024/11/3
+
+#tkinter是python標準庫，通常不需要另外安裝
+Pillow>=8.0.0
