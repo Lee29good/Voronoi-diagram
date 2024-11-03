@@ -14,7 +14,7 @@
   * deactivate
   
 # todo
-1.創建一個視窗功能
-2.建立畫布
-3.建立相關功能
-4.跑voronoi diagram
+* 創建一個視窗功能 >> check
+* 建立畫布
+* 建立相關功能
+* 跑voronoi diagram
