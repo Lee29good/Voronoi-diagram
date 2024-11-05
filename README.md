@@ -13,6 +13,9 @@
   * python3 <檔案名稱.py>
   * deactivate
   
+# 數據結構
+
+
 # todo
 * 創建一個視窗功能 >> check
 * 建立畫布

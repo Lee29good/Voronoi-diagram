@@ -1,6 +1,12 @@
+# $LAN=Python$
+# Author : 李明儒 Ming-Ru Li
+# Student ID : M133040055
+# Date : 2024/11/3
+
 import tkinter as tk
 from tkinter import font , ttk
 import random 
+import math
 
 class VoronoiDiagram:
   # 創建主視窗,設定視窗大小,設定視窗標題
@@ -19,13 +25,17 @@ class VoronoiDiagram:
     # 創建畫布和功能區域
     self.create_canvas_area()
     self.create_setting_area()
-    
-    # 點的計數器
-    self.point_index = 0 
+
     #滑鼠事件綁定
+    self.is_mouse_pressed = False
     self.canvas.bind("<ButtonPress-1>", self.on_canvas_press)
     self.canvas.bind("<Motion>", self.on_canvas_move)
     self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release) 
+
+    # voronoi diagram相關結構
+    self.point_index = 0 
+    self.points = []
+    self.edges = [] 
 
   def create_canvas_area(self):
     # 畫布跟標題區域
@@ -123,7 +133,7 @@ class VoronoiDiagram:
       ("清空頁面", self.clear_canvas)
     ]
     for i, (text, command) in enumerate(buttons):
-      button = tk.Button(parent, text=text, bg="lightblue", fg="black", font=self.custom_font2, width=10, command=command)
+      button = tk.Button(parent, text=text, bg="lightblue", fg="black", font=self.custom_font2, width=13, command=command)
       button.grid(row=i + 1, padx=(25, 0), pady=5)
 
   def create_file_buttons(self, parent):
@@ -133,7 +143,7 @@ class VoronoiDiagram:
       ("輸出文字檔", self.export_text_file)
     ]
     for i, (text, command) in enumerate(buttons):
-      button = tk.Button(parent, text=text, bg="lightblue", fg="black", font=self.custom_font2, width=10, command=command)
+      button = tk.Button(parent, text=text, bg="lightblue", fg="black", font=self.custom_font2, width=13, command=command)
       button.grid(row=i + 1, padx=(25, 0), pady=5)
 
   def create_vertex_record(self, parent):
@@ -142,8 +152,8 @@ class VoronoiDiagram:
     setting3.grid(row=1, column=0, padx=10, pady=5, sticky='nsew')
     setting3.grid_propagate(False)
 
-    label3 = tk.Label(setting3, text="<點資料>", fg="blue", font=self.custom_font)
-    label3.grid(row=0, sticky='w')
+    self.vertex_info_label = tk.Label(setting3, text="<點資料>  0個點", fg="blue", font=self.custom_font)
+    self.vertex_info_label.grid(row=0, sticky='w')
 
     self.vertex_record = ttk.Treeview(setting3, columns=("index", "x_column", "y_column"), show='headings', height=15)
     self.vertex_record.heading("index", text="index")
@@ -166,8 +176,8 @@ class VoronoiDiagram:
     self.line_record = ttk.Treeview(setting4, columns=("start", "end"), show='headings', height=15)
     self.line_record.heading("start", text="Start")
     self.line_record.heading("end", text="End")
-    self.line_record.column("start", width=82)
-    self.line_record.column("end", width=82)
+    self.line_record.column("start", width=100)
+    self.line_record.column("end", width=100)
     self.line_record.grid(row=1, padx=7)
 
   ##Canva畫布中的滑鼠事件
@@ -202,6 +212,18 @@ class VoronoiDiagram:
         self.point_index += 1
         self.vertex_record.insert("", "end", values=(self.point_index, x, y))
         self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
+        self.vertex_info_label.config(text=f"<點資料>  {self.point_index}個點")
+        self.points.append((x,y))
+        # 按照字典序排序
+        self.points = sorted(self.points)
+        print("vertex:", self.points)
+        self.vertex_treeview_lexicalorder()
+        # 在畫布上面也標上座標(方便觀察)
+        text_id = self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+        
+        # 清空輸入框方便輸入下一個點
+        self.vertex_x_input.delete(0, 'end')
+        self.vertex_y_input.delete(0, 'end')
       else:
         self.show_error("坐標必須在(0, 0)到(600, 600)之間。")
     except ValueError:
@@ -215,6 +237,12 @@ class VoronoiDiagram:
           x = random.randint(0, 600)
           y = random.randint(0, 600)
           self.add_vertex_to_treeview(x, y)
+          self.points.append((x,y))
+        
+        self.points = sorted(self.points)  
+        print("vertex:", self.points)
+        
+        self.vertex_treeview_lexicalorder()
       else:
         self.show_error("請輸入一個正整數。")
     except ValueError:
@@ -223,16 +251,29 @@ class VoronoiDiagram:
   def add_vertex_to_treeview(self, x, y):
     self.point_index += 1
     self.vertex_record.insert("", "end", values=(self.point_index, x, y))
+    # 在畫布上面也標上點跟座標(方便觀察)
     self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
-
+    text_id = self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+    # 更新點數量
+    self.vertex_info_label.config(text=f"<點資料>  {self.point_index}個點")
+    
+  def vertex_treeview_lexicalorder(self):
+    self.vertex_record.delete(*self.vertex_record.get_children())
+    temp_index = 1
+    for point in self.points:
+      x , y = point
+      self.vertex_record.insert("", "end", values=(temp_index, x, y))
+      temp_index += 1
+    
   def show_error(self, message):
     error_window = tk.Toplevel(self.root)
     error_window.title("錯誤")
     tk.Label(error_window, text=message, fg="red").pack(padx=20, pady=20)
     tk.Button(error_window, text="關閉", command=error_window.destroy).pack(pady=10)
 
+  # 跑 Voronoi algorithm 產出結果
   def execute_action(self):
-    print("執行動作的功能尚未實現。")
+    self.Voronoi_diagram_function()
 
   def next_data_set(self):
     print("下一組資料的功能尚未實現。")
@@ -244,7 +285,12 @@ class VoronoiDiagram:
     self.canvas.delete("all")
     self.vertex_record.delete(*self.vertex_record.get_children())
     self.line_record.delete(*self.line_record.get_children())
+    self.vertex_info_label.config(text="<點資料>  0個點")
+    self.vertex_position_value.config(text="(X,Y)")
     self.point_index = 0
+    self.points = []
+    self.edges = []
+    print("Data Clear!!")
 
   def load_input_file(self):
     print("讀取輸入檔的功能尚未實現。")
@@ -254,6 +300,99 @@ class VoronoiDiagram:
 
   def export_text_file(self):
     print("輸出文字檔的功能尚未實現。")
+
+  def Voronoi_diagram_function(self):
+    if(self.point_index <= 3):
+      self.VD_InThreeNode()
+    else:
+      print("做三個點以上的voronoi diagram")
+      
+  def VD_InThreeNode(self):
+    if(self.point_index == 2):
+      x1,y1 = self.points[0]
+      x2,y2 = self.points[1]
+      self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
+      self.draw_perpendicular_bisector(x1, y1, x2, y2)
+    else:
+      x1,y1 = self.points[0]
+      x2,y2 = self.points[1]
+      x3,y3 = self.points[2]
+    
+      #判斷第三個點(x3,y3) 在E:(x1,y1)(x2,y2)的左邊或右邊
+      self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
+      self.canvas.create_line(x2, y2, x3, y3, fill="green", dash=(4, 2))
+      self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
+      self.draw_perpendicular_bisector(x1, y1, x2, y2)
+      self.draw_perpendicular_bisector(x2, y2, x3, y3)
+      self.draw_perpendicular_bisector(x1, y1, x3, y3)
+
+  def draw_perpendicular_bisector(self, x1, y1, x2, y2):
+    # 計算中點座標
+    mid_x = (x1 + x2) / 2
+    mid_y = (y1 + y2) / 2
+    # perpendicular_bisector 的計算
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy)
+    # 垂直單位向量
+    ux, uy = -dy / length, dx / length
+    # 設定中垂線長度
+    line_length = 1000
+    # 計算中垂線起點和終點
+    px1 = mid_x + ux * line_length
+    py1 = mid_y + uy * line_length
+    px2 = mid_x - ux * line_length
+    py2 = mid_y - uy * line_length 
+    
+    # 裁剪線段到600x600畫布中
+    px1, py1, px2, py2 = self.clip_to_bounds(px1, py1, px2, py2)
+    px1, py1, px2, py2 = int(px1) , int(py1) , int(px2), int(py2)
+    
+    # 將線段記錄下來
+    edge = ((px1, py1), (px2, py2))
+    # note : px1 < px2 , if(px1 < px2) py1 <=py2
+    if(px1 > px2):
+      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
+    
+    self.edges.append(edge)
+    print("edges :", self.edges)
+    self.line_record.insert("", "end", values=(f"({int(px1)}, {int(py1)})", f"({int(px2)}, {int(py2)})"))
+    
+    # 繪製中垂線
+    self.canvas.create_line(px1, py1, px2, py2, fill="blue")
+    
+  def clip_to_bounds(self ,x1, y1, x2, y2):
+    # 定義邊界 , 只截到邊界上的點
+    min_x, max_x = 0, 600
+    min_y, max_y = 0, 600
+    if x1 < min_x:
+      y1 += (min_x - x1) * (y2 - y1) / (x2 - x1)
+      x1 = min_x
+    elif x1 > max_x:
+      y1 += (max_x - x1) * (y2 - y1) / (x2 - x1)
+      x1 = max_x
+
+    if x2 < min_x:
+      y2 += (min_x - x2) * (y1 - y2) / (x1 - x2)
+      x2 = min_x
+    elif x2 > max_x:
+      y2 += (max_x - x2) * (y1 - y2) / (x1 - x2)
+      x2 = max_x
+
+    if y1 < min_y:
+      x1 += (min_y - y1) * (x2 - x1) / (y2 - y1)
+      y1 = min_y
+    elif y1 > max_y:
+      x1 += (max_y - y1) * (x2 - x1) / (y2 - y1)
+      y1 = max_y
+
+    if y2 < min_y:
+      x2 += (min_y - y2) * (x1 - x2) / (y1 - y2)
+      y2 = min_y
+    elif y2 > max_y:
+      x2 += (max_y - y2) * (x1 - x2) / (y1 - y2)
+      y2 = max_y
+
+    return x1, y1, x2, y2
 
 if __name__ == "__main__":
   root = tk.Tk()

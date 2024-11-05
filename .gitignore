@@ -1,2 +1,4 @@
 # 忽略虛擬環境目錄
 myEnv/
+# 忽略相關文件檔案
+Voronoi_data/
