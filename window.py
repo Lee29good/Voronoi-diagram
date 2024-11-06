@@ -36,6 +36,7 @@ class VoronoiDiagram:
     self.point_index = 0 
     self.points = []
     self.edges = [] 
+    self.edges_canvas = []
 
   def create_canvas_area(self):
     # 畫布跟標題區域
@@ -290,6 +291,7 @@ class VoronoiDiagram:
     self.point_index = 0
     self.points = []
     self.edges = []
+    self.edges_canvas = []
     print("Data Clear!!")
 
   def load_input_file(self):
@@ -308,25 +310,164 @@ class VoronoiDiagram:
       print("做三個點以上的voronoi diagram")
       
   def VD_InThreeNode(self):
-    if(self.point_index == 2):
+    if(self.point_index == 1):
+      print("Remind : 只有一個點!!")
+    elif(self.point_index == 2):
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
       self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
       self.draw_perpendicular_bisector(x1, y1, x2, y2)
     else:
+      # 重新畫畫布
+      self.canvas.delete("all")
+      
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
       x3,y3 = self.points[2]
+      
+      # 標點
+      for point in self.points:
+        x , y = point
+        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
+        text_id = self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+      
+      # 如果三點共線
+      if(self.are_points_collinear(self.points)):
+        sorted_point = self.find_middle_point(self.points)
+        p1, p2, p3 = sorted_point
+        #提取點座標
+        x1, y1 = p1
+        x2, y2 = p2
+        x3, y3 = p3
+        self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
+        self.draw_perpendicular_bisector(x1, y1, x2, y2)
+        self.draw_perpendicular_bisector(x2, y2, x3, y3)
+        return
     
       #判斷第三個點(x3,y3) 在E:(x1,y1)(x2,y2)的左邊或右邊
       self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
       self.canvas.create_line(x2, y2, x3, y3, fill="green", dash=(4, 2))
       self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
-      self.draw_perpendicular_bisector(x1, y1, x2, y2)
-      self.draw_perpendicular_bisector(x2, y2, x3, y3)
-      self.draw_perpendicular_bisector(x1, y1, x3, y3)
+      
+      # 根據sorted point求外心 (Ux,Uy為外心值)
+      sorted_points = self.sort_points_counterclockwise(self.points)
+      Ux,Uy = self.circumcenter(sorted_points)
+      self.canvas.create_oval(Ux-3, Uy-3, Ux+3, Uy+3, fill="red")
+      
+      # 根據排序好的points求順時針的法向量 , 並且由外心進行延伸
+      norm1 = self.normal_vector(sorted_points[0], sorted_points[1])
+      norm2 = self.normal_vector(sorted_points[1], sorted_points[2])
+      norm3 = self.normal_vector(sorted_points[2], sorted_points[0])
+      
+      # 計算法向量的終點，這裡使用一個長度（例如100）來繪製法向量
+      line_length = 10000
+    
+      # 將外心和法向量結合，進行延伸繪製射線
+      self.canvas.create_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, fill="blue")
+      self.canvas.create_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length, fill="blue")
+      self.canvas.create_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length, fill="blue")
+      
+      # 將畫布內線段距離記錄下來
+      self.record_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length)
+      self.record_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length)
+      self.record_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length)
+      
+  # test 將點以逆時針排序，為了求法向量
+  def sort_points_counterclockwise(self,points):
+    # 假設 points 是 [(x1, y1), (x2, y2), (x3, y3)]
+    p1, p2, p3 = points
+    
+    # 提取點的坐標
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+    
+    # 計算叉積來確定方向
+    cross_product = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)
+    
+    # 如果叉積，表示三点共線
+    if cross_product == 0:
+        print("The points are collinear.")
+    
+    # 如果叉積為負(因為y座標倒轉)，表示 points 已經是逆時針方向
+    if cross_product < 0:
+      return points  # 直接返回原來的順序
+    
+    # 如果叉積為負，表示 points 是順時針方向，交換最後兩個點以獲得逆時針方向
+    return [p1, p3, p2]
+  
+  # 求外心公式
+  def circumcenter(self,points):
+    (x1, y1), (x2, y2), (x3, y3) = points
+    # 外心公式會用到
+    D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+    
+    if D == 0:
+      raise ValueError("三個點共線，無法確定外心")
+    
+    # 計算外心坐標
+    Ux = ((x1**2 + y1**2) * (y2 - y3) + (x2**2 + y2**2) * (y3 - y1) + (x3**2 + y3**2) * (y1 - y2)) / D
+    Uy = ((x1**2 + y1**2) * (x3 - x2) + (x2**2 + y2**2) * (x1 - x3) + (x3**2 + y3**2) * (x2 - x1)) / D
+    
+    return (Ux, Uy)
+  
+  def normal_vector(self, point1, point2):
+    # 提取點的座標
+    x1, y1 = point1
+    x2, y2 = point2
+    
+    # 計算向量 AB 的分量
+    dx = x2 - x1
+    dy = y2 - y1
+    
+    # 計算向量的長度
+    length = math.hypot(dx, dy)
+    
+    # 確保向量長度不為零，避免除以零的情況
+    if length == 0:
+        raise ValueError("兩點相同，無法計算法向量")
+    
+    # 計算單位法向量
+    unit_normal = (-dy / length, dx / length)  # 順時針方向的單位法向量
+    return unit_normal
+    
+  def record_line(self, px1, py1, px2, py2):
+    # 先加入邊的行列
+    edge = ((px1, py1), (px2, py2))
+    self.edges.append(edge)
+    
+    px1, py1, px2, py2 = self.clip_to_bounds(px1, py1, px2, py2)
+    px1, py1, px2, py2 = int(px1) , int(py1) , int(px2), int(py2)
+    
+    # 將線段記錄下來
+    edge = ((px1, py1), (px2, py2))
+    # note : px1 < px2 , if(px1 < px2) py1 <=py2
+    if(px1 > px2):
+      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
+    edge = ((px1, py1), (px2, py2))
+    
+    if((px1 == px2) & (py1==py2)):
+      return
+        
+    self.edges_canvas.append(edge)
+    # 排序邊，根據每條邊的兩個點按字典順序
+    self.edges.sort(key=lambda edge: (min(edge[0], edge[1]), max(edge[0], edge[1])))
+    self.edges_canvas.sort(key=lambda edge: (min(edge[0], edge[1]), max(edge[0], edge[1])))
+    print("edges :", self.edges )
+    print("edges_canvas :", self.edges_canvas )
+    self.line_treeview_lexicalorder()
 
+  def line_treeview_lexicalorder(self):
+    self.line_record.delete(*self.line_record.get_children())
+    for edge in self.edges_canvas :
+      (x1, y1), (x2, y2) = edge
+      edge_start = f"({x1}, {y1})"
+      edge_end = f"({x2}, {y2})"
+      self.line_record.insert("", "end", values=(edge_start,edge_end))
+      
+  # 目前沒用到
   def draw_perpendicular_bisector(self, x1, y1, x2, y2):
+    
     # 計算中點座標
     mid_x = (x1 + x2) / 2
     mid_y = (y1 + y2) / 2
@@ -336,7 +477,7 @@ class VoronoiDiagram:
     # 垂直單位向量
     ux, uy = -dy / length, dx / length
     # 設定中垂線長度
-    line_length = 1000
+    line_length = 5000
     # 計算中垂線起點和終點
     px1 = mid_x + ux * line_length
     py1 = mid_y + uy * line_length
@@ -360,6 +501,38 @@ class VoronoiDiagram:
     # 繪製中垂線
     self.canvas.create_line(px1, py1, px2, py2, fill="blue")
     
+  def are_points_collinear(self, points):
+    p1, p2, p3 = points
+    
+    # 提取點座標
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+    
+    # 計算cross
+    cross_product = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)
+    
+    # cross 為零則三點共線
+    return cross_product == 0
+  
+  def find_middle_point(self, points):
+    p1, p2, p3 = points
+    
+    # 提取點的座標
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+    
+    # 判斷點p2是否在p1 和 p3 中間
+    if (min(x1, x3) <= x2 <= max(x1, x3)) and (min(y1, y3) <= y2 <= max(y1, y3)):
+        return (p1,p2,p3)  # p2 在中間
+    # 判斷點p3是否在p1 和 p2 中間
+    elif (min(x1, x2) <= x3 <= max(x1, x2)) and (min(y1, y2) <= y3 <= max(y1, y2)):
+        return (p1,p3,p2)  # p3 在中間
+    # 如果都不在中間，則返回 p1
+    return (p2,p1,p3)  # p1 在中間
+  
+  # 只截取到畫布上的邊
   def clip_to_bounds(self ,x1, y1, x2, y2):
     # 定義邊界 , 只截到邊界上的點
     min_x, max_x = 0, 600
