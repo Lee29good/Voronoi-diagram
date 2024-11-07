@@ -4,7 +4,7 @@
 # Date : 2024/11/3
 
 import tkinter as tk
-from tkinter import font , ttk
+from tkinter import font , ttk , filedialog
 import random 
 import math
 
@@ -34,9 +34,11 @@ class VoronoiDiagram:
 
     # voronoi diagram相關結構
     self.point_index = 0 
+    self.current_data_index = 0
     self.points = []
     self.edges = [] 
     self.edges_canvas = []
+    self.data_sets = []
 
   def create_canvas_area(self):
     # 畫布跟標題區域
@@ -277,7 +279,27 @@ class VoronoiDiagram:
     self.Voronoi_diagram_function()
 
   def next_data_set(self):
-    print("下一組資料的功能尚未實現。")
+    self.clear_canvas()
+    # 確保有資料集可以讀取
+    if self.current_data_index < len(self.data_sets):
+      # 加載當前資料集到 self.points 中
+      self.points = self.data_sets[self.current_data_index]
+      print(f"讀取到的資料點：{self.points}")
+      
+      # 將點繪製到畫布上
+      for point in self.points:
+        x,y = point
+        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")  # 調整大小和顏色
+        self.add_vertex_to_treeview(x, y)
+        
+      self.current_data_index += 1
+      self.points = sorted(self.points)  
+      print("vertex:", self.points)
+      self.vertex_treeview_lexicalorder()
+
+
+    else:
+      print("已無更多資料可供讀取。")
 
   def step_by_step(self):
     print("一步一步執行的功能尚未實現。")
@@ -295,8 +317,20 @@ class VoronoiDiagram:
     print("Data Clear!!")
 
   def load_input_file(self):
-    print("讀取輸入檔的功能尚未實現。")
+    # 做選擇file並且讀取檔案
+    self.select_file()
+    # 確認讀取資料
+    print("所有讀入的測試資料:", self.data_sets)
 
+  def select_file(self):
+    # 使用文件對話框選取文件
+    file_path = filedialog.askopenfilename(
+      title="選擇測試資料文件",
+      filetypes=(("Text Files", "*.txt"), ("All Files", "*.*"))
+    )
+    if file_path:
+      self.read_file(file_path)
+      
   def load_output_file(self):
     print("讀取輸出檔的功能尚未實現。")
 
@@ -315,6 +349,9 @@ class VoronoiDiagram:
     elif(self.point_index == 2):
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
+      if((x1 == x2) & (y1 == y2)):
+        print("兩個是同一點")
+        return
       self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
       self.draw_perpendicular_bisector(x1, y1, x2, y2)
     else:
@@ -387,7 +424,7 @@ class VoronoiDiagram:
     
     # 如果叉積，表示三点共線
     if cross_product == 0:
-        print("The points are collinear.")
+      print("The points are collinear.")
     
     # 如果叉積為負(因為y座標倒轉)，表示 points 已經是逆時針方向
     if cross_product < 0:
@@ -566,6 +603,46 @@ class VoronoiDiagram:
       y2 = max_y
 
     return x1, y1, x2, y2
+  
+  def read_file(self, file_path):
+    self.data_sets = []  # 用於儲存所有測試資料
+    with open(file_path, 'r') as file:
+      current_data = []  # 當前測試資料組的點陣列
+      n = 0
+      reading_points = False
+
+      for line in file:
+        line = line.strip()
+        if line.startswith("#") or line == "":
+          continue  # 忽略註解和空行
+
+        # 嘗試解析為點數或座標
+        if not reading_points:  # 如果尚未設定點數，則嘗試讀取點數
+          try:
+            n = int(line)
+            if n == 0:
+              print("讀入點數為零，檔案測試停止")
+              break
+            current_data = []  # 初始化新的一組測試資料
+            reading_points = True  # 開始讀取座標點
+          except ValueError:
+            print("點數讀取錯誤")
+            continue
+        else:
+          # 讀取 n 個點並加入當前的點陣列
+          try:
+            x, y = map(int, line.split())
+            current_data.append((x, y))
+            n -= 1
+            if n == 0:  # 完成當前組的點讀取
+              self.data_sets.append(current_data)  # 將完整的一組資料儲存
+              reading_points = False
+              print(f"已讀取一組資料，共 {len(current_data)} 個點: {current_data}")
+          except ValueError:
+            print(f"無法解析的點: {line}")
+            continue
+    
+    self.next_data_set()
 
 if __name__ == "__main__":
   root = tk.Tk()
