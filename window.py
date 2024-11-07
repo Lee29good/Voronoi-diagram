@@ -4,7 +4,7 @@
 # Date : 2024/11/3
 
 import tkinter as tk
-from tkinter import font , ttk , filedialog
+from tkinter import font , ttk , filedialog , messagebox
 import random 
 import math
 
@@ -279,9 +279,10 @@ class VoronoiDiagram:
     self.Voronoi_diagram_function()
 
   def next_data_set(self):
-    self.clear_canvas()
     # 確保有資料集可以讀取
     if self.current_data_index < len(self.data_sets):
+      
+      self.clear_canvas()
       # 加載當前資料集到 self.points 中
       self.points = self.data_sets[self.current_data_index]
       print(f"讀取到的資料點：{self.points}")
@@ -296,10 +297,9 @@ class VoronoiDiagram:
       self.points = sorted(self.points)  
       print("vertex:", self.points)
       self.vertex_treeview_lexicalorder()
-
-
     else:
       print("已無更多資料可供讀取。")
+      self.show_error("已無更多資料可供讀取。")
 
   def step_by_step(self):
     print("一步一步執行的功能尚未實現。")
@@ -334,8 +334,9 @@ class VoronoiDiagram:
   def load_output_file(self):
     print("讀取輸出檔的功能尚未實現。")
 
+  # 輸出目前畫布資料文字檔
   def export_text_file(self):
-    print("輸出文字檔的功能尚未實現。")
+    self.save_to_file()
 
   def Voronoi_diagram_function(self):
     if(self.point_index <= 3):
@@ -469,7 +470,7 @@ class VoronoiDiagram:
     return unit_normal
     
   def record_line(self, px1, py1, px2, py2):
-    # 先加入邊的行列
+    # 先加入邊的行列, 並且先記錄在edge陣列中
     edge = ((px1, py1), (px2, py2))
     self.edges.append(edge)
     
@@ -481,6 +482,9 @@ class VoronoiDiagram:
     # note : px1 < px2 , if(px1 < px2) py1 <=py2
     if(px1 > px2):
       (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
+    elif ((px1 == px2) & (py1 > py2)):
+      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
+      
     edge = ((px1, py1), (px2, py2))
     
     if((px1 == px2) & (py1==py2)):
@@ -521,19 +525,7 @@ class VoronoiDiagram:
     px2 = mid_x - ux * line_length
     py2 = mid_y - uy * line_length 
     
-    # 裁剪線段到600x600畫布中
-    px1, py1, px2, py2 = self.clip_to_bounds(px1, py1, px2, py2)
-    px1, py1, px2, py2 = int(px1) , int(py1) , int(px2), int(py2)
-    
-    # 將線段記錄下來
-    edge = ((px1, py1), (px2, py2))
-    # note : px1 < px2 , if(px1 < px2) py1 <=py2
-    if(px1 > px2):
-      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
-    
-    self.edges.append(edge)
-    print("edges :", self.edges)
-    self.line_record.insert("", "end", values=(f"({int(px1)}, {int(py1)})", f"({int(px2)}, {int(py2)})"))
+    self.record_line(px1, py1, px2, py2)
     
     # 繪製中垂線
     self.canvas.create_line(px1, py1, px2, py2, fill="blue")
@@ -605,6 +597,7 @@ class VoronoiDiagram:
     return x1, y1, x2, y2
   
   def read_file(self, file_path):
+    self.current_data_index = 0
     self.data_sets = []  # 用於儲存所有測試資料
     with open(file_path, 'r') as file:
       current_data = []  # 當前測試資料組的點陣列
@@ -643,6 +636,37 @@ class VoronoiDiagram:
             continue
     
     self.next_data_set()
+    
+  # 輸出文字檔案功能
+  def save_to_file(self):
+    # 彈出視窗，讓使用者選擇儲存檔案的名稱和路徑
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".txt",
+        filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+    )
+    
+    # 如果使用者取消選擇，file_path 會是空字串
+    if not file_path:
+      return
+
+    try:
+      with open(file_path, 'w') as file:
+        # 寫入每個點的座標
+        for point in self.points:
+          x, y = point
+          file.write(f"P {x} {y}\n")
+        # 寫入每條邊的座標
+        for edge in self.edges_canvas:
+          e1, e2 = edge
+          x1, y1 = e1
+          x2, y2 = e2
+          file.write(f"E {x1} {y1} {x2} {y2}\n")
+        # 顯示成功訊息
+        messagebox.showinfo("成功", f"資料已成功儲存至 {file_path}")
+    except Exception as e:
+      # 顯示錯誤訊息
+      messagebox.showerror("錯誤", f"儲存檔案時發生錯誤：{e}")
+      
 
 if __name__ == "__main__":
   root = tk.Tk()
