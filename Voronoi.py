@@ -20,7 +20,7 @@ class VoronoiDiagram:
     # 字體設置
     self.custom_font = font.Font(family="Helvetica", size=20, weight="bold")
     self.custom_font2 = font.Font(family="Helvetica", size=13, weight="bold")
-    self.title_font = font.Font(family="Courier", size=60, weight="bold", slant="italic")
+    self.title_font = font.Font(family="'Helvetica'", size=60, weight="bold", slant="italic")
     
     # 創建畫布和功能區域
     self.create_canvas_area()
@@ -197,6 +197,12 @@ class VoronoiDiagram:
     x, y = event.x, event.y
     self.vertex_position_value.config(text=f"({x},{y})")
 
+    # 刪除畫布上標記為 "point" 的所有圓點
+    self.canvas.delete("point")
+    # 在畫布上繪製一個小圓點 , 顯示座標
+    self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="red", outline="black", tags="point")
+    self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black" , tags="point")
+
   def update_coordinates(self, x, y):  
     # 檢查坐標是否在範圍內
     if 0 <= x <= 600 and 0 <= y <= 600:
@@ -212,18 +218,19 @@ class VoronoiDiagram:
       x = int(self.vertex_x_input.get())
       y = int(self.vertex_y_input.get())
       if 0 <= x <= 600 and 0 <= y <= 600:
-        self.point_index += 1
-        self.vertex_record.insert("", "end", values=(self.point_index, x, y))
-        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
-        self.vertex_info_label.config(text=f"<點資料>  {self.point_index}個點")
-        self.points.append((x,y))
-        # 按照字典序排序
-        self.points = sorted(self.points)
-        print("vertex:", self.points)
-        self.vertex_treeview_lexicalorder()
-        # 在畫布上面也標上座標(方便觀察)
-        text_id = self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
-        
+        if (x,y) not in self.points: 
+          self.point_index += 1
+          self.vertex_record.insert("", "end", values=(self.point_index, x, y))
+          self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
+          self.vertex_info_label.config(text=f"<點資料>  {self.point_index}個點")
+          self.points.append((x,y))
+          # 按照字典序排序
+          self.points = sorted(self.points)
+          print("vertex:", self.points)
+          self.vertex_treeview_lexicalorder()
+          # 在畫布上面也標上座標(方便觀察)
+          self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+          
         # 清空輸入框方便輸入下一個點
         self.vertex_x_input.delete(0, 'end')
         self.vertex_y_input.delete(0, 'end')
@@ -332,7 +339,7 @@ class VoronoiDiagram:
       self.read_file(file_path)
       
   def load_output_file(self):
-    print("讀取輸出檔的功能尚未實現。")
+    self.load_output()
 
   # 輸出目前畫布資料文字檔
   def export_text_file(self):
@@ -345,9 +352,14 @@ class VoronoiDiagram:
       print("做三個點以上的voronoi diagram")
       
   def VD_InThreeNode(self):
-    if(self.point_index == 1):
+    if(self.point_index ==0 ):
+      print("Remind: 目前沒有任何的點")
+      return 
+    elif(self.point_index == 1):
       print("Remind : 只有一個點!!")
     elif(self.point_index == 2):
+      self.edges = []
+      self.edges_canvas = []
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
       if((x1 == x2) & (y1 == y2)):
@@ -367,7 +379,7 @@ class VoronoiDiagram:
       for point in self.points:
         x , y = point
         self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
-        text_id = self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+        self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
       
       # 如果三點共線
       if(self.are_points_collinear(self.points)):
@@ -377,6 +389,8 @@ class VoronoiDiagram:
         x1, y1 = p1
         x2, y2 = p2
         x3, y3 = p3
+        self.edges = []
+        self.edges_canvas = []
         self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
         self.draw_perpendicular_bisector(x1, y1, x2, y2)
         self.draw_perpendicular_bisector(x2, y2, x3, y3)
@@ -398,13 +412,16 @@ class VoronoiDiagram:
       norm3 = self.normal_vector(sorted_points[2], sorted_points[0])
       
       # 計算法向量的終點，這裡使用一個長度（例如100）來繪製法向量
-      line_length = 10000
+      line_length = 100000000
     
       # 將外心和法向量結合，進行延伸繪製射線
       self.canvas.create_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, fill="blue")
       self.canvas.create_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length, fill="blue")
       self.canvas.create_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length, fill="blue")
       
+      self.edges = []
+      self.edges_canvas = []
+
       # 將畫布內線段距離記錄下來
       self.record_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length)
       self.record_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length)
@@ -475,21 +492,20 @@ class VoronoiDiagram:
     self.edges.append(edge)
     
     px1, py1, px2, py2 = self.clip_to_bounds(px1, py1, px2, py2)
+
     px1, py1, px2, py2 = int(px1) , int(py1) , int(px2), int(py2)
     
     # 將線段記錄下來
     edge = ((px1, py1), (px2, py2))
     # note : px1 < px2 , if(px1 < px2) py1 <=py2
-    if(px1 > px2):
-      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
-    elif ((px1 == px2) & (py1 > py2)):
-      (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
+    if px1 > px2 or (px1 == px2 and py1 > py2):
+        (px1, py1), (px2, py2) = (px2, py2), (px1, py1)
       
     edge = ((px1, py1), (px2, py2))
     
     if((px1 == px2) & (py1==py2)):
       return
-        
+      
     self.edges_canvas.append(edge)
     # 排序邊，根據每條邊的兩個點按字典順序
     self.edges.sort(key=lambda edge: (min(edge[0], edge[1]), max(edge[0], edge[1])))
@@ -506,7 +522,6 @@ class VoronoiDiagram:
       edge_end = f"({x2}, {y2})"
       self.line_record.insert("", "end", values=(edge_start,edge_end))
       
-  # 目前沒用到
   def draw_perpendicular_bisector(self, x1, y1, x2, y2):
     
     # 計算中點座標
@@ -518,7 +533,7 @@ class VoronoiDiagram:
     # 垂直單位向量
     ux, uy = -dy / length, dx / length
     # 設定中垂線長度
-    line_length = 5000
+    line_length = 100000000
     # 計算中垂線起點和終點
     px1 = mid_x + ux * line_length
     py1 = mid_y + uy * line_length
@@ -540,7 +555,7 @@ class VoronoiDiagram:
     
     # 計算cross
     cross_product = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)
-    
+
     # cross 為零則三點共線
     return cross_product == 0
   
@@ -599,7 +614,7 @@ class VoronoiDiagram:
   def read_file(self, file_path):
     self.current_data_index = 0
     self.data_sets = []  # 用於儲存所有測試資料
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
       current_data = []  # 當前測試資料組的點陣列
       n = 0
       reading_points = False
@@ -625,7 +640,8 @@ class VoronoiDiagram:
           # 讀取 n 個點並加入當前的點陣列
           try:
             x, y = map(int, line.split())
-            current_data.append((x, y))
+            if (x,y) not in current_data:
+              current_data.append((x, y))
             n -= 1
             if n == 0:  # 完成當前組的點讀取
               self.data_sets.append(current_data)  # 將完整的一組資料儲存
@@ -666,7 +682,38 @@ class VoronoiDiagram:
     except Exception as e:
       # 顯示錯誤訊息
       messagebox.showerror("錯誤", f"儲存檔案時發生錯誤：{e}")
-      
+
+  #讀取輸出檔
+  def load_output(self):
+
+    filename = filedialog.askopenfilename(title="Select Output File", filetypes=(("Text Files", "*.txt"), ("All Files", "*.*")))
+
+    if not filename:
+      return  # 如果沒有選擇檔案，則不執行後續操作
+
+    self.clear_canvas()
+    # 讀取輸入檔案
+    with open(filename, 'r', encoding='utf-8') as file:
+      lines = file.readlines()
+    
+    for line in lines:
+      parts = line.strip().split()
+      if parts[0] == 'P':
+        # 點：格式 P x y
+        x, y = int(parts[1]), int(parts[2])
+        self.points.append((x, y))
+        self.add_vertex_to_treeview(x,y)
+        # 在畫布上繪製點
+        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
+      elif parts[0] == 'E':
+        # 邊：格式 E x1 y1 x2 y2
+        x1, y1, x2, y2 = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]) 
+        self.record_line(x1,y1,x2,y2)
+        
+    # 在畫布上繪製所有儲存在 self.edges 中的邊
+    for edge in self.edges:
+      (x1, y1), (x2, y2) = edge
+      self.canvas.create_line(x1, y1, x2, y2, fill="blue")  # 用藍色繪製邊
 
 if __name__ == "__main__":
   root = tk.Tk()
