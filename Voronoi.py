@@ -381,8 +381,8 @@ class VoronoiDiagram:
       # 標點
       for point in self.points:
         x , y = point
-        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill=color)
-        self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill=color)
+        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
+        self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
       
       # 如果三點共線
       if(self.are_points_collinear(self.points)):
@@ -745,7 +745,26 @@ class VoronoiDiagram:
         self.canvas.delete(item)
         print("delete:",item)
         break  
-  # 將計算完的所有元素話在畫布上    
+      
+  # 在canvas上更改點跟邊顏色操作
+  def change_node_and_edge_color(self,vertexSet,edgeSet,color):
+    # 遍歷畫布中的所有物件
+    for item in self.canvas.find_all():
+      
+      coords = self.canvas.coords(item)
+      
+      # 如果點再vertexSet中 -> 將點顏色改成color
+      if len(coords) == 4:  # 這是點 (圓形) 的坐標，應該有四個座標
+        x1, y1, x2, y2 = coords
+        center_x = (x1 + x2) / 2
+        center_y = (y1 + y2) / 2
+        if (center_x, center_y) in vertexSet:
+          self.canvas.itemconfig(item, fill=color)
+
+        edge = ((x1, y1), (x2, y2))
+        for edges in edgeSet:
+          if (edge[0] == edges[0] and edge[1] == edges[1]) or (edge[0] == edges[1] and edge[1] == edges[0]):
+            self.canvas.itemconfig(item, fill=color)
 
 ##########第二個class diagram ####################################################################################################
 
@@ -762,12 +781,13 @@ class Diagram:
     self.sort_Points()
     
     if(len(self.points)>3):
-      # 幫我插入停止
       self.left_sub_diagram = Diagram(self.points[:len(self.points) // 2])
-      # 幫我插入停止
       self.right_sub_diagram = Diagram(self.points[len(self.points) // 2:])
       self.left_sub_diagram.divide("red")
       self.right_sub_diagram.divide("blue")
+      # 將左邊點(邊)跟右邊點(邊)分別賦予左紅，右藍色
+      app.change_node_and_edge_color(self.left_sub_diagram.points,self.left_sub_diagram.edges,"red")
+      app.change_node_and_edge_color(self.right_sub_diagram.points,self.right_sub_diagram.edges,"blue")
       return self.Merge()
     #小於等於三個點
     else:
@@ -775,7 +795,7 @@ class Diagram:
       app.points = self.points[:]
       app.edges = self.edges[:]
       if color == "":
-        color = "black"
+        color = "green"
       app.VD_InThreeNode(color)
       # app.VD 會 return 對應的edges回來
       self.edges = app.edges[:]
@@ -795,7 +815,6 @@ class Diagram:
     # 1.將左右兩邊的點merge ,左右兩個個圖的邊merge
     self.points = self.left_sub_diagram.points + self.right_sub_diagram.points
     self.edges = self.left_sub_diagram.edges + self.right_sub_diagram.edges
-    app.edges = self.edges[:]
     print("\n>>>merge左右點<<<")
     print("$所有左邊點:",self.left_sub_diagram.points)
     print("$所有右邊點:",self.right_sub_diagram.points)
@@ -1038,13 +1057,6 @@ class Diagram:
           hyperPlane_vertex.append(edge[0])
           if edge not in tmptmpEdgeSet:
             tmptmpEdgeSet.append(edge)
-    
-    if(tmpEdgeSet == tmptmpEdgeSet):
-      print("The same")
-    else:
-      print("tmpEdgeSet number:",len(tmpEdgeSet),"tmptmpEdgeSet number:",len(tmptmpEdgeSet))
-    print("~~tmptmpEdgeSet:",tmptmpEdgeSet)
-    print("~~tmpEdgeSet:",tmpEdgeSet)
     
     # 將沒有採計到的那條邊去掉(亦即去掉沒有相連的邊)，並在畫布上去除那條邊
     for edge in tmpEdgeSet:
