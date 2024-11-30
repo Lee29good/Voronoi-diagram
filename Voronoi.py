@@ -39,6 +39,7 @@ class VoronoiDiagram:
     self.edges = [] 
     self.edges_canvas = []
     self.data_sets = []
+    self.execute_valid = True
 
   def create_canvas_area(self):
     # 畫布跟標題區域
@@ -213,6 +214,7 @@ class VoronoiDiagram:
       self.vertex_y_input.delete(0, tk.END)
       self.vertex_y_input.insert(0, str(y))
 
+  ##點處理(新增、隨機生成、排序treeview)
   def add_vertex(self):
     try:
       x = int(self.vertex_x_input.get())
@@ -283,9 +285,16 @@ class VoronoiDiagram:
 
   # 跑 Voronoi algorithm 產出結果
   def execute_action(self):
-    self.Voronoi_diagram_function()
+    if(self.execute_valid):
+      new_diagram = Diagram(self.points)
+      new_diagram.divide("")
+      self.execute_valid = False
+    
+  def Voronoi_diagram_function(self):
+    self.VD_InThreeNode()
 
   def next_data_set(self):
+
     # 確保有資料集可以讀取
     if self.current_data_index < len(self.data_sets):
       
@@ -304,6 +313,7 @@ class VoronoiDiagram:
       self.points = sorted(self.points)  
       print("vertex:", self.points)
       self.vertex_treeview_lexicalorder()
+      self.execute_valid = True
     else:
       print("已無更多資料可供讀取。")
       self.show_error("已無更多資料可供讀取。")
@@ -321,15 +331,18 @@ class VoronoiDiagram:
     self.points = []
     self.edges = []
     self.edges_canvas = []
-    print("Data Clear!!")
+    self.execute_valid = True
+    print("Data Clear!!\n")
 
   def load_input_file(self):
+    self.execute_valid = True
     # 做選擇file並且讀取檔案
     self.select_file()
     # 確認讀取資料
-    print("所有讀入的測試資料:", self.data_sets)
+    print("所有讀入的測試資料:", self.data_sets ,"\n")
 
   def select_file(self):
+    self.execute_valid = True
     # 使用文件對話框選取文件
     file_path = filedialog.askopenfilename(
       title="選擇測試資料文件",
@@ -339,37 +352,27 @@ class VoronoiDiagram:
       self.read_file(file_path)
       
   def load_output_file(self):
+    self.execute_valid = True
     self.load_output()
 
   # 輸出目前畫布資料文字檔
   def export_text_file(self):
     self.save_to_file()
-
-  def Voronoi_diagram_function(self):
-    if(self.point_index <= 3):
-      self.VD_InThreeNode()
-    else:
-      print("做三個點以上的voronoi diagram")
       
-  def VD_InThreeNode(self):
-    if(self.point_index ==0 ):
+  def VD_InThreeNode(self,color):
+    if(len(self.points) ==0 ):
       print("Remind: 目前沒有任何的點")
       return 
-    elif(self.point_index == 1):
+    elif(len(self.points) == 1):
       print("Remind : 只有一個點!!")
-    elif(self.point_index == 2):
-      self.edges = []
-      self.edges_canvas = []
+    elif(len(self.points) == 2):
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
       if((x1 == x2) & (y1 == y2)):
         print("兩個是同一點")
         return
-      self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
-      self.draw_perpendicular_bisector(x1, y1, x2, y2)
+      self.draw_perpendicular_bisector(x1, y1, x2, y2,color)
     else:
-      # 重新畫畫布
-      self.canvas.delete("all")
       
       x1,y1 = self.points[0]
       x2,y2 = self.points[1]
@@ -378,8 +381,8 @@ class VoronoiDiagram:
       # 標點
       for point in self.points:
         x , y = point
-        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")
-        self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill="black")
+        self.canvas.create_oval(x-3, y-3, x+3, y+3, fill=color)
+        self.canvas.create_text(x + 10, y, text=f"({x},{y})", anchor="nw", fill=color)
       
       # 如果三點共線
       if(self.are_points_collinear(self.points)):
@@ -389,22 +392,14 @@ class VoronoiDiagram:
         x1, y1 = p1
         x2, y2 = p2
         x3, y3 = p3
-        self.edges = []
-        self.edges_canvas = []
-        self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
-        self.draw_perpendicular_bisector(x1, y1, x2, y2)
-        self.draw_perpendicular_bisector(x2, y2, x3, y3)
+        
+        self.draw_perpendicular_bisector(x1, y1, x2, y2,color)
+        self.draw_perpendicular_bisector(x2, y2, x3, y3,color)
         return
-    
-      #判斷第三個點(x3,y3) 在E:(x1,y1)(x2,y2)的左邊或右邊
-      self.canvas.create_line(x1, y1, x2, y2, fill="green", dash=(4, 2))
-      self.canvas.create_line(x2, y2, x3, y3, fill="green", dash=(4, 2))
-      self.canvas.create_line(x1, y1, x3, y3, fill="green", dash=(4, 2))
       
       # 根據sorted point求外心 (Ux,Uy為外心值)
       sorted_points = self.sort_points_counterclockwise(self.points)
       Ux,Uy = self.circumcenter(sorted_points)
-      self.canvas.create_oval(Ux-3, Uy-3, Ux+3, Uy+3, fill="red")
       
       # 根據排序好的points求順時針的法向量 , 並且由外心進行延伸
       norm1 = self.normal_vector(sorted_points[0], sorted_points[1])
@@ -415,17 +410,14 @@ class VoronoiDiagram:
       line_length = 100000000
     
       # 將外心和法向量結合，進行延伸繪製射線
-      self.canvas.create_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, fill="blue")
-      self.canvas.create_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length, fill="blue")
-      self.canvas.create_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length, fill="blue")
-      
-      self.edges = []
-      self.edges_canvas = []
+      self.canvas.create_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, fill=color)
+      self.canvas.create_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length, fill=color)
+      self.canvas.create_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length, fill=color)
 
       # 將畫布內線段距離記錄下來
-      self.record_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length)
-      self.record_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length)
-      self.record_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length)
+      self.record_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, sorted_points[0], sorted_points[1])
+      self.record_line(Ux, Uy, Ux + norm2[0] * line_length, Uy + norm2[1] * line_length, sorted_points[1], sorted_points[2])
+      self.record_line(Ux, Uy, Ux + norm3[0] * line_length, Uy + norm3[1] * line_length, sorted_points[2], sorted_points[0])
       
   # test 將點以逆時針排序，為了求法向量
   def sort_points_counterclockwise(self,points):
@@ -486,10 +478,11 @@ class VoronoiDiagram:
     unit_normal = (-dy / length, dx / length)  # 順時針方向的單位法向量
     return unit_normal
     
-  def record_line(self, px1, py1, px2, py2):
+  def record_line(self, px1, py1, px2, py2, parent1, parent2):
     # 先加入邊的行列, 並且先記錄在edge陣列中
-    edge = ((px1, py1), (px2, py2))
-    self.edges.append(edge)
+    edge = ((px1, py1), (px2, py2), parent1, parent2)
+    if edge not in self.edges:
+      self.edges.append(edge)
     
     px1, py1, px2, py2 = self.clip_to_bounds(px1, py1, px2, py2)
 
@@ -505,13 +498,15 @@ class VoronoiDiagram:
     
     if((px1 == px2) & (py1==py2)):
       return
+    
+    if edge not in self.edges_canvas:
+      self.edges_canvas.append(edge)
       
-    self.edges_canvas.append(edge)
     # 排序邊，根據每條邊的兩個點按字典順序
     self.edges.sort(key=lambda edge: (min(edge[0], edge[1]), max(edge[0], edge[1])))
     self.edges_canvas.sort(key=lambda edge: (min(edge[0], edge[1]), max(edge[0], edge[1])))
-    print("edges :", self.edges )
-    print("edges_canvas :", self.edges_canvas )
+    print("$edges :", self.edges )
+    print("$edges_canvas :", self.edges_canvas )
     self.line_treeview_lexicalorder()
 
   def line_treeview_lexicalorder(self):
@@ -522,7 +517,7 @@ class VoronoiDiagram:
       edge_end = f"({x2}, {y2})"
       self.line_record.insert("", "end", values=(edge_start,edge_end))
       
-  def draw_perpendicular_bisector(self, x1, y1, x2, y2):
+  def draw_perpendicular_bisector(self, x1, y1, x2, y2,color):
     
     # 計算中點座標
     mid_x = (x1 + x2) / 2
@@ -540,10 +535,33 @@ class VoronoiDiagram:
     px2 = mid_x - ux * line_length
     py2 = mid_y - uy * line_length 
     
-    self.record_line(px1, py1, px2, py2)
+    parent1 = (x1,y1)
+    parent2 = (x2,y2)
+    
+    self.record_line(px1, py1, px2, py2, parent1, parent2)
     
     # 繪製中垂線
-    self.canvas.create_line(px1, py1, px2, py2, fill="blue")
+    self.canvas.create_line(px1, py1, px2, py2, fill=color)
+    
+  def cal_perpendicular_bisector(self, x1, y1, x2, y2):
+    
+    # 計算中點座標
+    mid_x = (x1 + x2) / 2
+    mid_y = (y1 + y2) / 2
+    # perpendicular_bisector 的計算
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy)
+    # 垂直單位向量
+    ux, uy = -dy / length, dx / length
+    # 設定中垂線長度
+    line_length = 100000000
+    # 計算中垂線起點和終點
+    px1 = mid_x + ux * line_length
+    py1 = mid_y + uy * line_length
+    px2 = mid_x - ux * line_length
+    py2 = mid_y - uy * line_length 
+    
+    return (px1, py1, px2, py2)
     
   def are_points_collinear(self, points):
     p1, p2, p3 = points
@@ -652,7 +670,7 @@ class VoronoiDiagram:
             continue
     
     self.next_data_set()
-    
+  
   # 輸出文字檔案功能
   def save_to_file(self):
     # 彈出視窗，讓使用者選擇儲存檔案的名稱和路徑
@@ -714,8 +732,542 @@ class VoronoiDiagram:
     for edge in self.edges:
       (x1, y1), (x2, y2) = edge
       self.canvas.create_line(x1, y1, x2, y2, fill="blue")  # 用藍色繪製邊
+      
+  # 在canvas上刪除邊操作
+  def delete_line_by_endpoints(self,x1, y1, x2, y2):
+    # 遍歷畫布中的所有物件
+    for item in self.canvas.find_all():
+      # 獲取物件的座標
+      coords = self.canvas.coords(item)
+      # 檢查是否與目標座標匹配
+      if len(coords) == 4 and ((coords[0], coords[1], coords[2], coords[3]) == (x1, y1, x2, y2) or 
+                                (coords[0], coords[1], coords[2], coords[3]) == (x2, y2, x1, y1)):
+        self.canvas.delete(item)
+        print("delete:",item)
+        break  
+  # 將計算完的所有元素話在畫布上    
 
-if __name__ == "__main__":
-  root = tk.Tk()
-  app = VoronoiDiagram(root)
-  root.mainloop()
+##########第二個class diagram ####################################################################################################
+
+class Diagram:
+  def __init__(self , points) : 
+    self.points = points
+    self.edges = []
+    
+  #切一半
+  def divide(self,color):
+    print("\n\n開始做 voronoi diagram ============================================================================================================================================================================================\n")
+    #大於三個點
+    #先排序好順序
+    self.sort_Points()
+    
+    if(len(self.points)>3):
+      # 幫我插入停止
+      self.left_sub_diagram = Diagram(self.points[:len(self.points) // 2])
+      # 幫我插入停止
+      self.right_sub_diagram = Diagram(self.points[len(self.points) // 2:])
+      self.left_sub_diagram.divide("red")
+      self.right_sub_diagram.divide("blue")
+      return self.Merge()
+    #小於等於三個點
+    else:
+      #丟points跟edges進去VD跑
+      app.points = self.points[:]
+      app.edges = self.edges[:]
+      if color == "":
+        color = "black"
+      app.VD_InThreeNode(color)
+      # app.VD 會 return 對應的edges回來
+      self.edges = app.edges[:]
+      app.edges = []
+      app.points = []
+      
+  #合併
+  def sort_Points(self):
+    # 假設 self.points 是一個二維點的列表
+    # 根據 x 坐標排序
+    self.points.sort(key=lambda point: point[0])
+    print(">>>排序後的點列表：", self.points) 
+    
+  #合併
+  def Merge(self):
+    print(">>>開始做merge<<<")
+    # 1.將左右兩邊的點merge ,左右兩個個圖的邊merge
+    self.points = self.left_sub_diagram.points + self.right_sub_diagram.points
+    self.edges = self.left_sub_diagram.edges + self.right_sub_diagram.edges
+    app.edges = self.edges[:]
+    print("\n>>>merge左右點<<<")
+    print("$所有左邊點:",self.left_sub_diagram.points)
+    print("$所有右邊點:",self.right_sub_diagram.points)
+    print("$所有左邊邊:",self.left_sub_diagram.edges)
+    print("$所有右邊邊:",self.right_sub_diagram.edges)
+    
+    # 2.如果不為共線，則可以先算出convex_Hull否則不算
+    if self.is_collinear():
+      print("$所有點共線，直接返回所有點")
+      #所有點共線相對於有左右兩邊的最近的兩個點去做bisector
+      point1,point2 = self.find_closest_points_of_two_sets(self.left_sub_diagram.points,self.right_sub_diagram.points)
+      (bisx1,bisy1,bisx2,bisy2) = app.cal_perpendicular_bisector(point1[0],point1[1],point2[0],point2[1])
+      app.canvas.create_line(bisx1,bisy1,bisx2,bisy2,fill="orange")
+      self.edges.append(((bisx1,bisy1),(bisx2,bisy2),point1,point2))
+      return
+    else:
+      hull = self.ConvexHull()
+    
+    # 3.算上下公切線
+    upperTangent, lowerTangent = self.FindCommonTangent(hull,self.left_sub_diagram.points,self.right_sub_diagram.points)
+    
+    # 4.ConvexHull
+    self.HyperPlane(upperTangent, lowerTangent)
+  
+    
+  #找上下公切線
+  def FindCommonTangent(self,hull,left_sub_points,right_sub_points):
+    print("\n>>>FindCommonTangent<<<")
+    print("$left_sub_points:",left_sub_points)
+    print("$right_sub_points:",right_sub_points)
+    
+    upperTangent = None
+    lowerTangent = None
+    
+    #建立一個for迴圈跑hull中的每的點以及下一個點，到最後一個點會接回來第一個點
+    for i in range(len(hull)):  # 遍歷到倒數第二個點
+      current_point = hull[i]
+      next_point = hull[(i + 1) % len(hull)]
+      # 判斷兩個點是否分別在左子集合和右子集合
+      # 判斷兩個點是否分別在左子集合和右子集合
+      if current_point in left_sub_points and next_point in right_sub_points:
+        lowerTangent = (current_point, next_point)  # 設定上公切線
+      elif current_point in right_sub_points and next_point in left_sub_points:
+        upperTangent = (current_point, next_point)  # 設定下公切線
+
+    print("$upperTangent:", upperTangent, "lowerTangent:", lowerTangent)
+    return upperTangent, lowerTangent
+    
+  #做Hyperplane
+  def HyperPlane(self, upperTangent, lowerTangent):
+    
+    print("\n>>>Do HyperPlane<<<")
+    # 當還沒碰到lowerTangent就持續做
+    # 流程：碰到,截斷,在重畫   note: upperTangent[0](blue)[右] , upperTangent[1](red)[紅]
+    current_Vertex1 = upperTangent[0]  
+    current_Vertex2 = upperTangent[1]
+    
+    # 先做一個暫時性的邊集合交到的點要先刪掉 , note:交到的線intersect_Line , 交到的點intersectX,intersectY
+    tmpEdgeSet = self.edges[:]    #創建新列表，寫成tmpEdgeSet = self.edge 同時修改，注意！！！
+    hyperPlane_edge = []
+    print("@@ tmpEdgeset",tmpEdgeSet,"@@\n")
+    intersect_Line = None 
+    intersectX = None 
+    intersectY = None
+    currentY = 100000000
+    checkBreak = 0
+    current_bisector = None
+    this_bisector = None
+    bisector_direction = None
+    pre_node = None
+    PreLine = None
+
+    # 從 upperTangent 做到 lowerTangent
+    while True:
+      # 做中垂線(畫和找) ， 先保留在tmpEdgeSet中，並手動畫出圖
+      (bisx1,bisy1,bisx2,bisy2) = app.cal_perpendicular_bisector(current_Vertex1[0],current_Vertex1[1],current_Vertex2[0],current_Vertex2[1])
+      current_bisector = ((bisx1,bisy1),(bisx2,bisy2))
+      print("##先做中垂線##",(bisx1,bisy1,bisx2,bisy2))
+      
+      #定義Pre_node如果None->起始中垂線->就先定為bisector中的高點
+      if pre_node==None :
+        if bisy1>bisy2:
+          pre_node = (bisx1,bisy1)
+        else:
+          pre_node = (bisx2,bisy2)
+          
+      # 找到最高的交點y --> for 迴圈
+      minDistant = 1000000000
+      tmpIntersectX = None
+      tmpIntersectY = None
+      
+      print("PreLine:",PreLine)
+      
+      for edge in tmpEdgeSet : 
+        (L1,L2,p1,p2) = edge
+        Line = (L1,L2,p1,p2)
+        intersection = self.FindIntersaction(Line, current_bisector)
+        if intersection is None:
+          continue
+        else:
+          tmpIntersectX, tmpIntersectY = intersection
+        
+          # 比較交點y座標，選擇y值最高的交點
+          if tmpIntersectY <= currentY and self.calculate_distance(intersection,pre_node) <= minDistant and PreLine != Line:
+            print("Intersaction_Line:",Line)
+            intersectX = tmpIntersectX
+            intersectY = tmpIntersectY
+            intersect_Line = Line
+            minDistant =self.calculate_distance(intersection,pre_node)
+
+      # 找到邊之後 ###################################################################################################################################
+      # 下次再做時不考慮這個邊用tmpEdgeSet扣掉 , 並且將prebisector改成此次交點
+      print("@@ intersection_Line:",intersect_Line)
+      if current_Vertex1 not in lowerTangent or current_Vertex2 not in lowerTangent:
+        PreLine = intersect_Line
+        currentY = intersectY
+        print("currentY:",currentY)
+      else:
+        print("inside")
+        # 用來判斷最後一條中垂線怎麼做 -> 目前不確定最後宜條線會不會是橫線
+        if bisy1<bisy2:
+          pre_node = (bisx1,bisy1)
+        else:
+          pre_node = (bisx2,bisy2)
+        
+      # 目前截取到的bisector -> 之後要放進去hyperPlane_edge中
+      this_bisector = (pre_node,(intersectX,intersectY),current_Vertex1,current_Vertex2)
+      
+      # 畫出截斷後的bisector ， 並放進去hyperPlane裡面做紀錄
+      app.canvas.create_line(pre_node[0],pre_node[1],intersectX,intersectY,fill="orange")
+      hyperPlane_edge.append(this_bisector)
+
+      ####################################
+      if checkBreak == 1:
+        break
+      #################################### 終結點 ， 最後一次做完中垂線
+
+      #2. 做交點到保留的那一個線段 (使用外基判斷)：(1)先判斷交到的是左邊的點還是右邊的點 -> 先找到線的parents就能知道左點還是右點了(2)在使用外基CCW function進行截斷操作 
+      # note : 需要計算邊的color 之後添加邊的顏色比較好寫 -> red 外基截斷順時針 , blue 外基截斷逆時針 -> 將current_Vertex改下一個點
+      color = None 
+      print("tmp:" , tmpEdgeSet)
+      # 判斷hyperPlane往下做的下一個點
+      (L1,L2,p1,p2) = intersect_Line
+      if p1 in self.left_sub_diagram.points:
+        color = "red"
+        if p1 == current_Vertex2:
+          current_Vertex2 = p2
+        else:
+          current_Vertex2 = p1
+      else:
+        color = "blue"
+        if p1 == current_Vertex1:
+          current_Vertex1 = p2
+        else:
+          current_Vertex1 = p1    
+        
+      # 令一個intersectPoint表示交點 , 以及bisector direction : (pre_node,interdectPoint)
+      intersectPoint = (intersectX,intersectY)
+      
+      # 如果是同一個點的話，就使用上一次的bisector_direction來做判斷
+      if pre_node != intersectPoint:
+        bisector_direction = self.VectorFromPoints(pre_node,intersectPoint)
+        print("bs:",bisector_direction)
+      
+      # if color == "red"左 -> (1)刪除那個邊並畫上新的邊(2)把新的邊加入tmpedge中(3)畫出新的邊
+      if color == "red":
+        #判斷交點跟兩個端點與法向量是順時針還是逆時針（要逆時針的）note: 法向量永遠是取從y大到y小的方向的
+        intersection_edge_direction = self.VectorFromPoints(intersectPoint,intersect_Line[0])
+        # 如果是左邊的保留逆時針，淘汰順時針方向
+        if self.check_direction(bisector_direction,intersection_edge_direction) == "clockwise":
+          app.delete_line_by_endpoints(intersect_Line[0][0],intersect_Line[0][1],intersect_Line[1][0],intersect_Line[1][1])
+          print("@@remove:",intersect_Line)
+          print("@@append:",intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3])
+          # 移除舊邊添加新邊 ， 並將PreLine改成正確的值 , 並在畫布上畫上
+          tmpEdgeSet.remove(intersect_Line)
+          tmpEdgeSet.append((intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3]))
+          PreLine = (intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3])
+          print("Preline:",PreLine)
+          app.canvas.create_line(intersectX,intersectY,intersect_Line[0][0],intersect_Line[0][1],fill="red")
+        else:
+          app.delete_line_by_endpoints(intersect_Line[0][0],intersect_Line[0][1],intersect_Line[1][0],intersect_Line[1][1])
+          print("@@remove:",intersect_Line)
+          print("@@append:",(intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3]))
+          tmpEdgeSet.remove(intersect_Line)
+          tmpEdgeSet.append((intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3]))
+          PreLine = (intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3])
+          print("Preline:",PreLine)
+          app.canvas.create_line(intersectX,intersectY,intersect_Line[1][0],intersect_Line[1][1],fill="red")
+          
+      # elif color == "blue"右 -> (1)刪除那個邊畫上新的邊(2)把新的邊加入new_edge中(3)畫出新的邊
+      if color == "blue":
+        #判斷交點跟兩個端點與法向量是順時針還是逆時針（要順時針的）note: 法向量永遠是取從y大到y小的方向的
+        intersection_edge_direction = self.VectorFromPoints(intersectPoint,intersect_Line[0])
+        # 如果是右邊的保留順時針，淘汰逆時針方向
+        if self.check_direction(bisector_direction,intersection_edge_direction) == "counterclockwise":
+          app.delete_line_by_endpoints(intersect_Line[0][0],intersect_Line[0][1],intersect_Line[1][0],intersect_Line[1][1])
+          print("@@remove:",intersect_Line)
+          print("@@append:",(intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3]))
+          tmpEdgeSet.remove(intersect_Line)
+          tmpEdgeSet.append((intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3]))
+          PreLine = (intersectPoint,intersect_Line[0],intersect_Line[2],intersect_Line[3])
+          print("Preline:",PreLine)
+          app.canvas.create_line(intersectX,intersectY,intersect_Line[0][0],intersect_Line[0][1],fill="blue")
+        else:
+          app.delete_line_by_endpoints(intersect_Line[0][0],intersect_Line[0][1],intersect_Line[1][0],intersect_Line[1][1])
+          print("@@remove:",intersect_Line)
+          print("@@append:",(intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3]))
+          tmpEdgeSet.remove(intersect_Line)  
+          tmpEdgeSet.append((intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3]))
+          PreLine =(intersectPoint,intersect_Line[1],intersect_Line[2],intersect_Line[3])
+          print("Preline:",PreLine)
+          app.canvas.create_line(intersectX,intersectY,intersect_Line[1][0],intersect_Line[1][1],fill="blue")
+      
+      ######################################################################
+      if current_Vertex1 in lowerTangent and current_Vertex2 in lowerTangent:
+        checkBreak = checkBreak + 1
+      ###################################################################### 做完後會在做最後一次的bisector話line
+      pre_node = intersectPoint
+      print("@@left_point:",current_Vertex2,"right_point",current_Vertex1 ,"@@\n")
+    
+    ## 把多餘的邊都刪掉   ######################################################################
+    hyperPlane_vertex = []
+    #先搜集hyperPlane上所有的邊
+    for edge in hyperPlane_edge:
+      if edge[0] not in hyperPlane_vertex:
+        hyperPlane_vertex.append(edge[0])
+      if edge[1] not in hyperPlane_vertex:
+        hyperPlane_vertex.append(edge[1])
+    
+    # 判斷目前所有的邊中有哪些邊不是由hyperPlane延伸出去的(需要跑n/2次因為一邊最多n/2個交點) -> 刪除
+    # 創建一個臨時的set叫做tmptmpEdgeSet用來記錄tmpEdgeSet最後正確結果（刪除後的結果）
+    tmptmpEdgeSet = []
+    for i in range(len(self.points)):
+      for edge in tmpEdgeSet:
+        if edge[0] in hyperPlane_vertex:
+          hyperPlane_vertex.append(edge[1])
+          if edge not in tmptmpEdgeSet:
+            tmptmpEdgeSet.append(edge)
+        if edge[1] in hyperPlane_vertex:
+          hyperPlane_vertex.append(edge[0])
+          if edge not in tmptmpEdgeSet:
+            tmptmpEdgeSet.append(edge)
+    
+    if(tmpEdgeSet == tmptmpEdgeSet):
+      print("The same")
+    else:
+      print("tmpEdgeSet number:",len(tmpEdgeSet),"tmptmpEdgeSet number:",len(tmptmpEdgeSet))
+    print("~~tmptmpEdgeSet:",tmptmpEdgeSet)
+    print("~~tmpEdgeSet:",tmpEdgeSet)
+    
+    # 將沒有採計到的那條邊去掉(亦即去掉沒有相連的邊)，並在畫布上去除那條邊
+    for edge in tmpEdgeSet:
+      if edge not in tmptmpEdgeSet:
+        app.delete_line_by_endpoints(edge[0][0],edge[0][1],edge[1][0],edge[1][1])
+    
+    tmpEdgeSet = tmptmpEdgeSet    
+    
+        
+    ###################################################################### #################
+        
+    
+    # 完全做完後將結果邊進行合併：tmpEdgeSet + hyperPlane_edge ###################################
+    print("\n@@tmpEdgeset :",tmpEdgeSet , "\n@@hyperPlane_edge : ",hyperPlane_edge)
+    self.edges = tmpEdgeSet + hyperPlane_edge
+    app.line_treeview_lexicalorder()
+    
+    ###################################################################### #################
+    
+    
+  def calculate_distance(self,point1, point2):
+    """
+    计算两点之间的欧几里得距离。
+
+    :param point1: 第一个点的坐标，格式为 (x, y) 或 (x, y, z)
+    :param point2: 第二个点的坐标，格式为 (x, y) 或 (x, y, z)
+    :return: 两点之间的距离
+    """
+    if len(point1) != len(point2):
+        raise ValueError("两点的维度必须相同")
+    
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
+    
+  #find intersaction
+  def FindIntersaction(self, segment1, segment2):
+    """
+    計算兩條線段的交點
+    segment1: [(x1, y1), (x2, y2)] 線段 1 的兩端點
+    segment2: [(x3, y3), (x4, y4)] 線段 2 的兩端點
+    返回值:
+        如果有交點，返回交點坐標 (x, y)
+        如果無交點，返回 None
+    """
+    x1, y1 = segment1[0]
+    x2, y2 = segment1[1]
+    x3, y3 = segment2[0]
+    x4, y4 = segment2[1]
+
+    # 計算線段的向量差
+    det = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+    if det == 0:
+        # 平行或共線，無交點
+        return None
+
+    # 求解交點的參數 t 和 u
+    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / det
+    u = ((x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)) / det
+
+    # 判斷是否在線段內
+    if 0 <= t <= 1 and 0 <= u <= 1:
+        # 計算交點坐標
+        inter_x = x1 + t * (x2 - x1)
+        inter_y = y1 + t * (y2 - y1)
+        return (inter_x, inter_y)
+
+    # 交點不在線段範圍內
+    return None
+  
+  def find_closest_points_of_two_sets(self,set1, set2):
+    """
+    找到集合 set1 和集合 set2 中最近的两点，不返回距离。
+
+    :param set1: 集合 1，列表形式，包含二维点的元组 [(x1, y1), (x2, y2), ...]
+    :param set2: 集合 2，列表形式，包含二维点的元组 [(x1, y1), (x2, y2), ...]
+    :return: 最近点对 (p1, p2)
+    """
+    closest_pair = None
+    min_distance_squared = float('inf')
+    
+    # 遍历 set1 和 set2 中所有可能的点对
+    for point1 in set1:
+        for point2 in set2:
+            # 计算距离的平方
+            distance_squared = (point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2
+            if distance_squared < min_distance_squared:
+                min_distance_squared = distance_squared
+                closest_pair = (point1, point2)
+
+    return closest_pair
+
+      
+  def check_direction(self,v1, v2):
+    """
+    判斷兩個向量之間的方向。
+    :param v1: 向量1 (x1, y1)
+    :param v2: 向量2 (x2, y2)
+    :return: "counterclockwise", "clockwise", or "collinear"
+    """
+    x1, y1 = v1
+    x2, y2 = v2
+    
+    cross = x1 * y2 - y1 * x2
+    
+    if cross > 0:
+      return "counterclockwise"  # 逆時針
+    elif cross < 0:
+      return "clockwise"  # 順時針
+    else:
+      return "collinear"  # 共線
+  
+  #找ConvexHull
+  def ConvexHull(self):
+    
+    hull = []
+    startPoint = self.getMinYPoint()  # 起始點是 y 最小的點
+    hull.append(startPoint)
+    prevertex = startPoint  # 上一個點，初始化為起始點
+
+    while True:
+      candidate = None
+      for point in self.points:
+        if point == prevertex: 
+          continue  # 跳過上一個選中的點
+
+        if candidate is None:
+          candidate = point  # 初始候選點
+          continue
+
+        ccw_value = self.CheckCCW(prevertex, candidate, point)
+        if ccw_value == 0 and self.pointDist(prevertex, candidate) > self.pointDist(prevertex, point):
+          vector1 = self.VectorFromPoints(prevertex,candidate)
+          vector2 = self.VectorFromPoints(prevertex,point)
+          if self.CheckVectorDirection(vector1,vector2) == 0: 
+            continue
+          candidate = point  # 共線時，選擇距離最近的點
+          
+        elif ccw_value < 0:
+          candidate = point  # 順針時，更新候選點
+
+      if candidate == startPoint:
+        break  # 回到起點，終止迴圈
+      hull.append(candidate)
+      prevertex = candidate  # 更新上一個選中的點
+
+    print("$Convex Hull 點順序 : " , hull)
+    return hull
+
+############# 找convex hull 用到的 function  ############# ########### ########### 
+  
+  def getMinYPoint(self):
+    # 找到 y 最小的點，若 y 相同則返回 x 最小的點
+    return min(self.points, key=lambda p: (p[1], p[0]))
+  
+  #同一條線不能往回找判斷:Dot
+  def CheckVectorDirection(self,u, v):
+    """
+    判斷兩個向量是否同向或反向
+    u, v: 向量，格式為 (dx, dy)
+    返回值：
+        1 表示同方向
+        0 表示反方向
+    """
+    # 防止零向量的特殊情況
+    if u == (0, 0) or v == (0, 0):
+        raise ValueError("無法判斷零向量的方向")
+
+    # 計算比例
+    ratio_x = v[0] / u[0] if u[0] != 0 else None
+    ratio_y = v[1] / u[1] if u[1] != 0 else None
+
+    # 判斷是否為同方向或反方向
+    if ratio_x is not None and ratio_y is not None and ratio_x == ratio_y:
+        return 1 if ratio_x > 0 else 0
+    elif ratio_x is None and ratio_y is not None:  # u[0] 為 0，但 v[0] 也應該是 0
+        return 1 if v[1] / u[1] > 0 else 0
+    elif ratio_y is None and ratio_x is not None:  # u[1] 為 0，但 v[1] 也應該是 0
+        return 1 if v[0] / u[0] > 0 else 0
+
+    # 其他情況：非同方向或反方向
+    return 0
+  
+  def VectorFromPoints(self, A, B):
+    """
+    計算從點 A 到點 B 的向量
+    A, B: 二維座標點，格式為 (x, y)
+    返回向量 (dx, dy)
+    """
+    return (B[0] - A[0], B[1] - A[1])
+
+  
+  #找ConvexHull
+  def CheckCCW(self, p, q, r):
+    """計算 p, q, r 三點的叉積，用來判斷是否逆時針 (ccw > 0)、順時針 (ccw < 0) 或共線 (ccw == 0)"""
+    return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+  def pointDist(self, p1, p2):
+    """計算兩點 p1 和 p2 之間的歐幾里得距離"""
+    return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+  
+  def is_collinear(self):
+    # 如果少於3個點，直接返回 True，因為兩個點必定共線
+    if len(self.points) < 3:
+      return True
+
+    # 取第一個點和第二個點作為基準
+    p1 = self.points[0]
+    p2 = self.points[1]
+
+    # 檢查所有後續的點是否與前兩個點共線
+    for i in range(2, len(self.points)):
+      p3 = self.points[i]
+      # 計算叉積來判斷三點是否共線
+      cross_product = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+      
+      if cross_product != 0:  # 叉積不為零，代表三個點不共線
+        return False
+
+    # 如果沒有發現不共線的點，返回 True
+    return True
+
+########### ########### ########### ########### ########### ########### ########### 
+
+root = tk.Tk()
+app = VoronoiDiagram(root)
+root.mainloop()
