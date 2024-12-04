@@ -788,7 +788,6 @@ class VoronoiDiagram:
     
     :param hull: Convex Hull 的點順序列表 [(x1, y1), (x2, y2), ...]
     """
-    print("刪除 Convex Hull 邊的點順序：", hull)
     if len(hull) < 2:
         print("Convex Hull 點數不足，無法刪除邊")
         return
@@ -1350,8 +1349,8 @@ def stop():
   paused = True  # 重置 paused 狀態，等待下一次暫停
 
 def next_step():
-    global paused
-    paused = False
+  global paused
+  paused = False
 
 def run():
   global running
