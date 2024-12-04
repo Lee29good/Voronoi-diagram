@@ -799,6 +799,16 @@ class VoronoiDiagram:
     for edge in edgeSet:
       print("create:",(edge[0][0],edge[0][1],edge[1][0],edge[1][1]))
       app.canvas.create_line(edge[0][0],edge[0][1],edge[1][0],edge[1][1],fill="black")
+      
+  def clear_treeview(self):
+    """
+    清空 Treeview 的所有項目。
+    
+    :param treeview: Tkinter 的 Treeview 元件
+    """
+    for item in self.line_record.get_children():
+      self.line_record.delete(item)
+    print("Treeview 已清空")
 
 ##########第二個class diagram ####################################################################################################
 
@@ -886,6 +896,16 @@ class Diagram:
     
     app.change_node_and_edge_color(self.points,self.edges,"green")
     stop()    
+    
+    # 清空line_record 的 treeview 再重新加入
+    app.clear_treeview()
+    app.edges = []
+    app.edges_canvas = []
+    for edge in self.edges:
+      try:
+          app.record_line(edge[0][0], edge[0][1], edge[1][0], edge[1][1], edge[2], edge[3])
+      except Exception as e:
+          print(f"記錄線段時發生錯誤：{e}")
     
   #找上下公切線
   def FindCommonTangent(self,hull,left_sub_points,right_sub_points):
