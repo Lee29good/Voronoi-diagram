@@ -40,7 +40,8 @@ class VoronoiDiagram:
     self.edges_canvas = []
     self.data_sets = []
     self.execute_valid = True
-
+    self.isDoingStepbyStep = False
+    
   def create_canvas_area(self):
     # 畫布跟標題區域
     canva_area = tk.Frame(self.root, width=620, height=700, borderwidth=2, relief="solid")
@@ -285,10 +286,13 @@ class VoronoiDiagram:
 
   # 跑 Voronoi algorithm 產出結果
   def execute_action(self):
+    run()
     if(self.execute_valid):
       new_diagram = Diagram(self.points)
       new_diagram.divide("")
       self.execute_valid = False
+    global running
+    running = False
     
   def Voronoi_diagram_function(self):
     self.VD_InThreeNode()
@@ -309,17 +313,28 @@ class VoronoiDiagram:
         self.canvas.create_oval(x-3, y-3, x+3, y+3, fill="black")  # 調整大小和顏色
         self.add_vertex_to_treeview(x, y)
         
+        
       self.current_data_index += 1
       self.points = sorted(self.points)  
       print("vertex:", self.points)
       self.vertex_treeview_lexicalorder()
       self.execute_valid = True
+      self.isDoingStepbyStep = False
+      global running 
+      running = False
     else:
       print("已無更多資料可供讀取。")
       self.show_error("已無更多資料可供讀取。")
 
-  def step_by_step(self):
-    print("一步一步執行的功能尚未實現。")
+  def step_by_step(self):    
+     
+    if(self.isDoingStepbyStep == False):
+      new_diagram = Diagram(self.points)
+      new_diagram.divide("")
+    else:
+      print("nextStep")
+      next_step()
+    self.isDoingStepbyStep = True
 
   def clear_canvas(self):
     self.canvas.delete("all")
@@ -332,6 +347,7 @@ class VoronoiDiagram:
     self.edges = []
     self.edges_canvas = []
     self.execute_valid = True
+    self.isDoingStepbyStep = False
     print("Data Clear!!\n")
 
   def load_input_file(self):
@@ -407,7 +423,7 @@ class VoronoiDiagram:
       norm3 = self.normal_vector(sorted_points[2], sorted_points[0])
       
       # 計算法向量的終點，這裡使用一個長度（例如100）來繪製法向量
-      line_length = 100000000
+      line_length = 1000000
     
       # 將外心和法向量結合，進行延伸繪製射線
       self.canvas.create_line(Ux, Uy, Ux + norm1[0] * line_length, Uy + norm1[1] * line_length, fill=color)
@@ -528,7 +544,7 @@ class VoronoiDiagram:
     # 垂直單位向量
     ux, uy = -dy / length, dx / length
     # 設定中垂線長度
-    line_length = 100000000
+    line_length = 1000000
     # 計算中垂線起點和終點
     px1 = mid_x + ux * line_length
     py1 = mid_y + uy * line_length
@@ -554,7 +570,7 @@ class VoronoiDiagram:
     # 垂直單位向量
     ux, uy = -dy / length, dx / length
     # 設定中垂線長度
-    line_length = 100000000
+    line_length = 1000000
     # 計算中垂線起點和終點
     px1 = mid_x + ux * line_length
     py1 = mid_y + uy * line_length
@@ -765,6 +781,23 @@ class VoronoiDiagram:
         for edges in edgeSet:
           if (edge[0] == edges[0] and edge[1] == edges[1]) or (edge[0] == edges[1] and edge[1] == edges[0]):
             self.canvas.itemconfig(item, fill=color)
+  
+  def delete_hull_edges(self, hull):
+    """
+    刪除畫布上由 hull 點形成的所有邊。
+    
+    :param hull: Convex Hull 的點順序列表 [(x1, y1), (x2, y2), ...]
+    """
+    print("刪除 Convex Hull 邊的點順序：", hull)
+    if len(hull) < 2:
+        print("Convex Hull 點數不足，無法刪除邊")
+        return
+    
+    # 遍歷點集合並刪除對應邊
+    for i in range(len(hull)):
+        x1, y1 = hull[i]
+        x2, y2 = hull[(i + 1) % len(hull)]  # 與下一點連接，最後一點與第一點閉合
+        self.delete_line_by_endpoints(x1, y1, x2, y2)
 
 ##########第二個class diagram ####################################################################################################
 
@@ -785,9 +818,19 @@ class Diagram:
       self.right_sub_diagram = Diagram(self.points[len(self.points) // 2:])
       self.left_sub_diagram.divide("red")
       self.right_sub_diagram.divide("blue")
-      # 將左邊點(邊)跟右邊點(邊)分別賦予左紅，右藍色
+      stop()
       app.change_node_and_edge_color(self.left_sub_diagram.points,self.left_sub_diagram.edges,"red")
       app.change_node_and_edge_color(self.right_sub_diagram.points,self.right_sub_diagram.edges,"blue")
+      stop()
+      lefthull = self.left_sub_diagram.ConvexHull()
+      righthull = self.right_sub_diagram.ConvexHull()
+      self.left_sub_diagram.draw_hull(lefthull)
+      self.right_sub_diagram.draw_hull(righthull)
+      stop()
+      app.delete_hull_edges(lefthull)
+      app.delete_hull_edges(righthull)
+      hull = self.ConvexHull()
+      self.draw_hull(hull)
       return self.Merge()
     #小於等於三個點
     else:
@@ -812,7 +855,7 @@ class Diagram:
   #合併
   def Merge(self):
     print(">>>開始做merge<<<")
-    # 1.將左右兩邊的點merge ,左右兩個個圖的邊merge
+    # 1.將左右兩邊的點merge ,左右兩個子圖的邊merge
     self.points = self.left_sub_diagram.points + self.right_sub_diagram.points
     self.edges = self.left_sub_diagram.edges + self.right_sub_diagram.edges
     print("\n>>>merge左右點<<<")
@@ -828,6 +871,7 @@ class Diagram:
       point1,point2 = self.find_closest_points_of_two_sets(self.left_sub_diagram.points,self.right_sub_diagram.points)
       (bisx1,bisy1,bisx2,bisy2) = app.cal_perpendicular_bisector(point1[0],point1[1],point2[0],point2[1])
       app.canvas.create_line(bisx1,bisy1,bisx2,bisy2,fill="orange")
+      stop()
       self.edges.append(((bisx1,bisy1),(bisx2,bisy2),point1,point2))
       return
     else:
@@ -838,6 +882,11 @@ class Diagram:
     
     # 4.ConvexHull
     self.HyperPlane(upperTangent, lowerTangent)
+    
+    app.delete_hull_edges(hull)
+    
+    app.change_node_and_edge_color(self.points,self.edges,"green")
+    stop()
   
     
   #找上下公切線
@@ -933,18 +982,14 @@ class Diagram:
         currentY = intersectY
         print("currentY:",currentY)
       else:
-        print("inside")
-        # 用來判斷最後一條中垂線怎麼做 -> 目前不確定最後宜條線會不會是橫線
-        if bisy1<bisy2:
-          pre_node = (bisx1,bisy1)
-        else:
-          pre_node = (bisx2,bisy2)
+        pre_node = (bisx1,bisy1)
         
       # 目前截取到的bisector -> 之後要放進去hyperPlane_edge中
       this_bisector = (pre_node,(intersectX,intersectY),current_Vertex1,current_Vertex2)
       
       # 畫出截斷後的bisector ， 並放進去hyperPlane裡面做紀錄
       app.canvas.create_line(pre_node[0],pre_node[1],intersectX,intersectY,fill="orange")
+      stop()
       hyperPlane_edge.append(this_bisector)
 
       ####################################
@@ -1073,6 +1118,7 @@ class Diagram:
     print("\n@@tmpEdgeset :",tmpEdgeSet , "\n@@hyperPlane_edge : ",hyperPlane_edge)
     self.edges = tmpEdgeSet + hyperPlane_edge
     app.line_treeview_lexicalorder()
+    stop()
     
     ###################################################################### #################
     
@@ -1201,9 +1247,21 @@ class Diagram:
         break  # 回到起點，終止迴圈
       hull.append(candidate)
       prevertex = candidate  # 更新上一個選中的點
-
-    print("$Convex Hull 點順序 : " , hull)
+    
     return hull
+
+  def draw_hull(self,hull):
+    print("$Convex Hull 點順序 : " , hull)
+    if len(hull) < 2:
+        print("Convex Hull 點數不足，無法繪製")
+        return
+    
+    # 繪製點之間的連線
+    for i in range(len(hull)):
+        x1, y1 = hull[i]
+        x2, y2 = hull[(i + 1) % len(hull)]  # 與下一點連接，最後一點連回第一點
+        app.canvas.create_line(x1, y1, x2, y2, fill="purple", width=2)
+
 
 ############# 找convex hull 用到的 function  ############# ########### ########### 
   
@@ -1246,8 +1304,7 @@ class Diagram:
     返回向量 (dx, dy)
     """
     return (B[0] - A[0], B[1] - A[1])
-
-  
+    
   #找ConvexHull
   def CheckCCW(self, p, q, r):
     """計算 p, q, r 三點的叉積，用來判斷是否逆時針 (ccw > 0)、順時針 (ccw < 0) 或共線 (ccw == 0)"""
@@ -1280,6 +1337,28 @@ class Diagram:
 
 ########### ########### ########### ########### ########### ########### ########### 
 
+############# 設計lock 用到的 class  ############# ########### ########### def stop():
+    
+running = False
+paused = True
+    
+def stop():
+  global paused
+  while paused:
+      root.update()  # 不斷刷新 Tkinter 界面，保持 GUI 響應
+  if(running):return
+  paused = True  # 重置 paused 狀態，等待下一次暫停
+
+def next_step():
+    global paused
+    paused = False
+
+def run():
+  global running
+  global paused
+  paused=False
+  running=True
+    
 root = tk.Tk()
 app = VoronoiDiagram(root)
 root.mainloop()
