@@ -1,7 +1,7 @@
 # $LAN=Python$
 # Author : 李明儒 Ming-Ru Li
 # Student ID : M133040055
-# Date : 2024/11/3
+# Date : 2024/12/4
 
 import tkinter as tk
 from tkinter import font , ttk , filedialog , messagebox
@@ -859,7 +859,7 @@ class Diagram:
       app.edges = []
       app.points = []
       
-  #合併
+  #排序點
   def sort_Points(self):
     # 假設 self.points 是一個二維點的列表
     # 根據 x 坐標排序
@@ -1111,7 +1111,7 @@ class Diagram:
     
     ###################################################################### #################
     
-    
+  #計算距離
   def calculate_distance(self,point1, point2):
     """
     计算两点之间的欧几里得距离。

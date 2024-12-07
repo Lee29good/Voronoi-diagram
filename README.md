@@ -13,11 +13,15 @@
   * python3 <檔案名稱.py>
   * deactivate
   
-# 數據結構
+# 依賴包
+* requirement.txt
+
+# 測資
+* (1)註解測資.txt
+* (2)沒註解測資.txt
+
+# 執行檔案
+* windows版本 : Voronoi.exe
+* MacOS版本 : 自行使用Python在mac打包 Voronoi.py
 
 
-# todo
-* 創建一個視窗功能 >> check
-* 建立畫布
-* 建立相關功能
-* 跑voronoi diagram
